@@ -1,0 +1,54 @@
+<!--
+  LITPAX PAYMENT FOLLOW-UP CRM — Apps Script "Index.html"
+  ----------------------------------------------------------------------------
+  Fully Sheet-driven: all data (customers/invoices, follow-ups, CRM users)
+  loads live from the Google Sheet via google.script.run.getData().
+  Add/edit/delete a customer, invoice, or CRM user directly in the Sheet —
+  it reflects here automatically, no code changes needed.
+  LOGO: replace the <svg class="mark">…</svg> below with your real logo:
+  <img class="mark" src="YOUR_LOGO_URL">
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Litpax Payment Follow-up CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<?!= include('Stylesheet'); ?>
+
+<header class="app">
+  <div class="bar">
+    <div class="lockup">
+      <svg class="mark" viewBox="0 0 46 46" xmlns="http://www.w3.org/2000/svg">
+        <rect width="46" height="46" rx="10" fill="#E8722A"/>
+        <text x="23" y="30" font-family="Space Grotesk, sans-serif" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">LX</text>
+      </svg>
+      <div class="wm"><b>LITPAX TECHNOLOGY</b><small>Payment Follow-up CRM</small></div>
+    </div>
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A9CA2" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" placeholder="Search customer or invoice no…" autocomplete="off">
+    </div>
+    <div class="userbox">
+      <div class="av" id="uav"></div>
+      <div class="ul"><small>Logged in as</small>
+        <select id="user" onchange="switchUser(this.value)"></select></div>
+    </div>
+    <div class="today"><b id="td"></b><small>Rohtak / Sirsa, HR</small></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+  <div class="toolbar"><div class="chips" id="chips"></div></div>
+  <div class="seg-title" id="segTitle"></div>
+  <div class="lhead"><span></span><span class="h-cust">Customer</span><span class="h-amt">Outstanding</span><span class="h-fu">Calls</span><span class="h-over">Overdue</span><span class="h-next">Next</span><span></span></div>
+  <div class="list" id="list"></div>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer" aria-label="Invoice follow-up detail"></aside>
+<div class="toast" id="toast"><span class="tick">✓</span><span id="toastMsg"></span></div>
+
+<?!= include('JavaScript'); ?>
