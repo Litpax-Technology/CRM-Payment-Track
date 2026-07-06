@@ -45,7 +45,11 @@
 
 <div class="wrap">
   <div class="stats" id="stats"></div>
-  <div class="toolbar"><div class="chips" id="chips"></div></div>
+  <div class="toolbar">
+    <div class="chips" id="chips"></div>
+    <button class="newbtn" onclick="openInvoiceForm(-1)">+ Naya Invoice</button>
+    <button class="teambtn" id="teamBtn" onclick="openTeamPanel()" style="display:none">👥 Manage Team</button>
+  </div>
   <div class="seg-title" id="segTitle"></div>
   <div class="lhead"><span></span><span class="h-cust">Customer</span><span class="h-amt">Outstanding</span><span class="h-fu">Calls</span><span class="h-over">Overdue</span><span class="h-next">Next</span><span></span></div>
   <div class="list" id="list"></div>
