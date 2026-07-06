@@ -126,6 +126,7 @@ function render(){
   const usel = document.getElementById('user');
   if(!usel.dataset.built){ usel.innerHTML = Object.keys(USERS).map(u=>`<option>${u}</option>`).join(''); usel.dataset.built=1; }
   usel.value = currentUser;
+  document.getElementById('teamBtn').style.display = (USERS[currentUser]||{}).role==='director' ? '' : 'none';
 
   const rows = scope(C());
 
@@ -220,8 +221,29 @@ function openDrawer(i){
   const escNote = r.escalate ? `<div class="done-note"><b>5 follow-ups completed and still unpaid.</b>
      This invoice now needs the director. Logging here records a <b>director note</b>, not a 6th follow-up.</div>` : '';
 
+  const payHistory = (r.payments && r.payments.length) ? `
+      <div class="sectitle">Payment history</div>
+      <div class="fcards">${r.payments.map(p=>`
+        <div class="payrow"><div><b>${fmtINR(p.amount)}</b><small>${p.mode} · ${fmtD(d(p.date))} · recorded by ${p.by}</small></div></div>`).join('')}</div>` : '';
+
+  const paymentForm = !r.paid ? `
+      <div class="logform">
+        <h4>Record a payment</h4>
+        <div class="who">Balance due: <b>${fmtINR(r.bal)}</b></div>
+        <div class="two">
+          <div class="fld"><label>Amount received (₹)</label><input id="p_amt" type="number" inputmode="numeric" placeholder="0"></div>
+          <div class="fld"><label>Mode</label><select id="p_mode"><option>Cash</option><option>NEFT</option><option>UPI</option><option>Cheque</option><option>Other</option></select></div>
+        </div>
+        <button class="save" onclick="recordPayment()">Save payment</button>
+        <button class="markpaid" onclick="markPaid()">Mark as fully paid</button>
+      </div>` : '';
+
   document.getElementById('drawer').innerHTML = `
     <div class="dhead"><button class="x" onclick="closeDrawer()">×</button>
+      <div class="dhead-actions">
+        <button class="iconbtn" title="Edit invoice" onclick="openInvoiceForm(${i})">✎</button>
+        <button class="iconbtn danger" title="Delete invoice" onclick="deleteInvoiceConfirm('${r.inv}')">🗑</button>
+      </div>
       <h2>${r.cust}</h2>
       <div class="meta">${r.inv} · ${fmtINR(r.bal)} outstanding · ${odText(r.overdue)}</div></div>
     <div class="dbody">
@@ -236,6 +258,8 @@ function openDrawer(i){
         <div><div class="k">Status</div><div class="v" style="color:${edgeColor(r.stage)}">${pipLabel(r)}</div></div>
         <div class="wide"><div class="k">Ship to</div><div class="v" style="font-weight:400">${r.ship}</div></div>
       </div>
+      ${payHistory}
+      ${paymentForm}
       <div class="sectitle">Call history</div>
       <div class="fcards">${fc(1)}${fc(2)}${fc(3)}${fc(4)}${fc(5)}${dirCards}</div>
       ${r.paid ? `<div class="done-note" style="background:var(--paid-bg);border-color:#BBE3C7;color:#15692F"><b>Paid &amp; closed.</b> No further follow-up needed.</div>`
@@ -250,7 +274,6 @@ function openDrawer(i){
           <div class="fld"><label>Next follow-up date</label><input id="f_nx" type="date" value="${r.next||''}"></div>
         </div>
         <button class="save" onclick="saveFU()">${r.escalate?'Save director note':'Save follow-up '+nextFU}</button>
-        <button class="markpaid" onclick="markPaid()">Mark as fully paid</button>
       </div>`}
     </div>`;
   document.getElementById('scrim').classList.add('on');
@@ -288,12 +311,168 @@ function saveFU(){
 function markPaid(){
   const inv = DATA[openIdx].inv;
   toast('Saving…');
-  gasCall('markPaid', { inv }, resp=>{
+  gasCall('markPaid', { inv, user: currentUser }, resp=>{
     DATA = resp.invoices||[]; USERS = resp.users||{};
     closeDrawer(); render(); toast('Marked as paid');
   }, err=>toast('Error: '+err));
 }
+function recordPayment(){
+  const inv = DATA[openIdx].inv;
+  const amt = +document.getElementById('p_amt').value || 0;
+  const mode = document.getElementById('p_mode').value;
+  if(amt<=0){ document.getElementById('p_amt').focus(); return; }
+  toast('Saving…');
+  gasCall('recordPayment', { inv, amount: amt, mode, user: currentUser }, resp=>{
+    DATA = resp.invoices||[]; USERS = resp.users||{};
+    const i = DATA.findIndex(x=>x.inv===inv); openIdx=i;
+    render(); openDrawer(i); toast('Payment of '+fmtINR(amt)+' recorded');
+  }, err=>toast('Error: '+err));
+}
 function toast(msg){ document.getElementById('toastMsg').textContent=msg; const t=document.getElementById('toast'); t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),2300); }
+
+/* ===================== ADD / EDIT / DELETE INVOICE ===================== */
+function openInvoiceForm(idx){
+  const isEdit = idx>=0;
+  const r = isEdit ? DATA[idx] : null;
+  const crmOptions = Object.keys(USERS).filter(u=>USERS[u].role==='crm');
+  document.getElementById('drawer').innerHTML = `
+    <div class="dhead"><button class="x" onclick="closeDrawer()">×</button>
+      <h2>${isEdit?'Edit invoice':'Naya invoice'}</h2>
+      <div class="meta">${isEdit?r.inv:'Invoice number apne aap ban jayega'}</div></div>
+    <div class="dbody">
+      <div class="fld"><label>Customer name</label><input id="if_cust" value="${isEdit?r.cust:''}" placeholder="e.g. Shree Balaji Battery House"></div>
+      <div class="two">
+        <div class="fld"><label>City</label><input id="if_city" value="${isEdit?r.city:''}"></div>
+        <div class="fld"><label>Contact person</label><input id="if_contact" value="${isEdit?r.contact:''}"></div>
+      </div>
+      <div class="two">
+        <div class="fld"><label>Phone</label><input id="if_phone" value="${isEdit?r.phone:''}"></div>
+        <div class="fld"><label>Assigned CRM</label>
+          <select id="if_assigned">${crmOptions.map(u=>`<option ${isEdit&&u===r.assignedTo?'selected':''}>${u}</option>`).join('')}</select></div>
+      </div>
+      <div class="fld"><label>Ship to / Address</label><input id="if_ship" value="${isEdit?r.ship:''}"></div>
+      <div class="two">
+        <div class="fld"><label>Invoice date</label><input id="if_date" type="date" value="${isEdit?r.date:new Date().toISOString().slice(0,10)}"></div>
+        <div class="fld"><label>Credit days</label><input id="if_terms" type="number" value="${isEdit?r.terms:30}"></div>
+      </div>
+      <div class="two">
+        <div class="fld"><label>Invoice amount (₹)</label><input id="if_amt" type="number" value="${isEdit?r.amt:''}"></div>
+        <div class="fld"><label>Next follow-up date</label><input id="if_next" type="date" value="${isEdit?r.next:''}"></div>
+      </div>
+      <button class="save" onclick="saveInvoiceForm(${isEdit?idx:-1})">${isEdit?'Save changes':'Add invoice'}</button>
+      ${isEdit?`<button class="markpaid" style="border-color:#D6534F;color:#B4231F" onclick="deleteInvoiceConfirm('${r.inv}')">Delete invoice</button>`:''}
+    </div>`;
+  document.getElementById('scrim').classList.add('on');
+  document.getElementById('drawer').classList.add('on');
+}
+function saveInvoiceForm(idx){
+  const isEdit = idx>=0;
+  const cust = document.getElementById('if_cust').value.trim();
+  if(!cust){ document.getElementById('if_cust').focus(); return; }
+  const payload = {
+    cust, city: document.getElementById('if_city').value.trim(),
+    contact: document.getElementById('if_contact').value.trim(),
+    phone: document.getElementById('if_phone').value.trim(),
+    assignedTo: document.getElementById('if_assigned').value,
+    ship: document.getElementById('if_ship').value.trim(),
+    date: document.getElementById('if_date').value,
+    terms: document.getElementById('if_terms').value,
+    amt: document.getElementById('if_amt').value,
+    next: document.getElementById('if_next').value
+  };
+  toast('Saving…');
+  if(isEdit){
+    payload.inv = DATA[idx].inv;
+    gasCall('updateInvoice', payload, resp=>{
+      DATA = resp.invoices||[]; USERS = resp.users||{};
+      closeDrawer(); render(); toast('Invoice updated');
+    }, err=>toast('Error: '+err));
+  } else {
+    gasCall('addInvoice', payload, resp=>{
+      DATA = resp.invoices||[]; USERS = resp.users||{};
+      closeDrawer(); render(); toast('Naya invoice add ho gaya');
+    }, err=>toast('Error: '+err));
+  }
+}
+function deleteInvoiceConfirm(inv){
+  if(!confirm('Pakka '+inv+' delete karna hai? Follow-up aur payment history bhi delete ho jayegi. Ye undo nahi ho sakta.')) return;
+  toast('Deleting…');
+  gasCall('deleteInvoice', { inv }, resp=>{
+    DATA = resp.invoices||[]; USERS = resp.users||{};
+    closeDrawer(); render(); toast('Invoice delete kar diya');
+  }, err=>toast('Error: '+err));
+}
+
+/* ===================== TEAM MANAGEMENT (director only) ===================== */
+function openTeamPanel(){
+  document.getElementById('drawer').innerHTML = `
+    <div class="dhead"><button class="x" onclick="closeDrawer()">×</button>
+      <h2>Manage Team</h2>
+      <div class="meta">CRM aur Director add/edit/delete karo</div></div>
+    <div class="dbody">
+      <div class="sectitle">Current team</div>
+      <div id="teamList"></div>
+      <div class="logform">
+        <h4>Add new</h4>
+        <div class="fld"><label>Name</label><input id="tu_name" placeholder="e.g. Rajesh Kumar"></div>
+        <div class="two">
+          <div class="fld"><label>Role</label><select id="tu_role"><option value="crm">CRM</option><option value="director">Director</option></select></div>
+          <div class="fld"><label>Color (optional)</label><input id="tu_color" type="color" value="#0F766E"></div>
+        </div>
+        <button class="save" onclick="addTeamMember()">Add member</button>
+      </div>
+    </div>`;
+  renderTeamList();
+  document.getElementById('scrim').classList.add('on');
+  document.getElementById('drawer').classList.add('on');
+}
+function renderTeamList(){
+  document.getElementById('teamList').innerHTML = Object.keys(USERS).map(name=>{
+    const u = USERS[name];
+    return `<div class="userlistrow">
+      <div class="av" style="width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;background:${uColor(name)}">${initials(name)}</div>
+      <div class="nm"><b>${name}</b><small>${u.role}</small></div>
+      <div class="actions">
+        <button class="iconbtn" title="Rename" onclick="renameTeamMember('${name}')">✎</button>
+        <button class="iconbtn danger" title="Remove" onclick="deleteTeamMember('${name}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function addTeamMember(){
+  const name = document.getElementById('tu_name').value.trim();
+  const role = document.getElementById('tu_role').value;
+  const color = document.getElementById('tu_color').value;
+  if(!name){ document.getElementById('tu_name').focus(); return; }
+  toast('Saving…');
+  gasCall('addUser', { name, role, color }, resp=>{
+    DATA = resp.invoices||[]; USERS = resp.users||{};
+    document.getElementById('user').dataset.built='';
+    openTeamPanel(); toast(name+' added');
+  }, err=>toast('Error: '+err));
+}
+function renameTeamMember(oldName){
+  const name = prompt('Naya naam:', oldName);
+  if(!name || name.trim()===oldName) return;
+  toast('Saving…');
+  gasCall('updateUser', { oldName, name: name.trim() }, resp=>{
+    DATA = resp.invoices||[]; USERS = resp.users||{};
+    document.getElementById('user').dataset.built='';
+    if(currentUser===oldName) currentUser = name.trim();
+    openTeamPanel(); toast('Updated');
+  }, err=>toast('Error: '+err));
+}
+function deleteTeamMember(name){
+  if(Object.keys(USERS).length<=1){ toast('Kam se kam ek user rehna chahiye'); return; }
+  if(!confirm(name+' ko team se hatana hai?')) return;
+  toast('Removing…');
+  gasCall('deleteUser', { name }, resp=>{
+    DATA = resp.invoices||[]; USERS = resp.users||{};
+    document.getElementById('user').dataset.built='';
+    if(currentUser===name) currentUser = Object.keys(USERS)[0];
+    openTeamPanel(); toast('Removed');
+  }, err=>toast('Error: '+err));
+}
 
 document.getElementById('q').addEventListener('input',e=>{ search=e.target.value; render(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
