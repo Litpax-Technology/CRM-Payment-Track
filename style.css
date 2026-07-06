@@ -1,5 +1,4 @@
-<style>
-  :root{
+:root{
     --ink:#26282E; --ink2:#3A3C42; --char:#43454B; --line:#E6E3DC; --line2:#F0EDE6;
     --paper:#F5F3EE; --card:#FFFFFF; --muted:#6E7178; --muted2:#9A9CA2;
     --steel:#E8722A; --brand:#E8722A; --brand-deep:#C2540F;
@@ -166,4 +165,3 @@
     .cust .nm small{font-size:10px}
   }
   @media(prefers-reduced-motion:reduce){*{transition:none!important}}
-</style>
