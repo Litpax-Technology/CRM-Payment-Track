@@ -1,4 +1,3 @@
-<script>
 /* ===================================================================
    DATA LAYER — everything below loads live from the Google Sheet.
    No hardcoded customers/users. Add/edit/delete in the Sheet and it
@@ -32,9 +31,28 @@ function showLoadError(err){
   document.getElementById('list').innerHTML = `<div class="empty"><b>Data load nahi ho paya</b>${err && err.message ? err.message : err}</div>`;
 }
 
+/**
+ * JSONP helper — GAS Web App ko GitHub Pages se cross-origin call karne ka
+ * standard tarika (fetch/CORS ka jhanjhat nahi, seedha <script> tag load hota hai).
+ */
+function gasCall(action, params, onSuccess, onError){
+  const cbName = 'gascb_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+  window[cbName] = function(data){
+    delete window[cbName];
+    if (scriptEl.parentNode) scriptEl.parentNode.removeChild(scriptEl);
+    if (data && data.error) { if (onError) onError(data.error); return; }
+    onSuccess(data);
+  };
+  const qs = new URLSearchParams({ action, callback: cbName, ...params }).toString();
+  const scriptEl = document.createElement('script');
+  scriptEl.src = GAS_URL + '?' + qs;
+  scriptEl.onerror = () => { if (onError) onError('GAS se connect nahi ho paya. config.js me GAS_URL check karo.'); };
+  document.body.appendChild(scriptEl);
+}
+
 function loadData(){
   showLoading('Loading…');
-  google.script.run.withSuccessHandler(onDataLoaded).withFailureHandler(showLoadError).getData();
+  gasCall('getData', {}, onDataLoaded, showLoadError);
 }
 function onDataLoaded(resp){
   DATA = resp.invoices || [];
@@ -246,11 +264,11 @@ function closeDrawer(){
 function reassign(name){
   const inv = DATA[openIdx].inv;
   toast('Saving…');
-  google.script.run.withSuccessHandler(resp=>{
+  gasCall('reassign', { inv, user: name }, resp=>{
     DATA = resp.invoices||[]; USERS = resp.users||{};
     const i = DATA.findIndex(x=>x.inv===inv); openIdx = i;
     render(); openDrawer(i); toast('Assigned to '+name);
-  }).withFailureHandler(err=>toast('Error: '+(err&&err.message?err.message:err))).reassignInvoice(inv, name);
+  }, err=>toast('Error: '+err));
 }
 function saveFU(){
   const r=DATA[openIdx];
@@ -261,24 +279,22 @@ function saveFU(){
   const c=compute(r);
   const inv = r.inv;
   toast('Saving…');
-  google.script.run.withSuccessHandler(resp=>{
+  gasCall('saveFollowUp', { inv, remark: rm, promise: pr, next: nx, user: currentUser, isDirector: c.escalate }, resp=>{
     DATA = resp.invoices||[]; USERS = resp.users||{};
     closeDrawer(); render();
     toast(c.escalate?'Director note saved':'Follow-up saved by '+currentUser);
-  }).withFailureHandler(err=>toast('Error: '+(err&&err.message?err.message:err)))
-    .saveFollowUp(inv, rm, pr, nx, currentUser, c.escalate);
+  }, err=>toast('Error: '+err));
 }
 function markPaid(){
   const inv = DATA[openIdx].inv;
   toast('Saving…');
-  google.script.run.withSuccessHandler(resp=>{
+  gasCall('markPaid', { inv }, resp=>{
     DATA = resp.invoices||[]; USERS = resp.users||{};
     closeDrawer(); render(); toast('Marked as paid');
-  }).withFailureHandler(err=>toast('Error: '+(err&&err.message?err.message:err))).markPaid(inv);
+  }, err=>toast('Error: '+err));
 }
 function toast(msg){ document.getElementById('toastMsg').textContent=msg; const t=document.getElementById('toast'); t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),2300); }
 
 document.getElementById('q').addEventListener('input',e=>{ search=e.target.value; render(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
 loadData();
-</script>
