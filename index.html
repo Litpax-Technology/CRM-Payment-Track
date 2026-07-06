@@ -1,10 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <!--
-  LITPAX PAYMENT FOLLOW-UP CRM — Apps Script "Index.html"
+  LITPAX PAYMENT FOLLOW-UP CRM — GitHub Pages frontend
   ----------------------------------------------------------------------------
-  Fully Sheet-driven: all data (customers/invoices, follow-ups, CRM users)
-  loads live from the Google Sheet via google.script.run.getData().
-  Add/edit/delete a customer, invoice, or CRM user directly in the Sheet —
-  it reflects here automatically, no code changes needed.
+  Backend: Google Apps Script (Code.gs) deployed as a Web App, called via
+  JSONP from app.js using the URL set in config.js.
+  Sheet-driven: customers/invoices, follow-ups, and CRM users all live in
+  Google Sheets. Add/edit/delete rows there — this app reflects it live.
   LOGO: replace the <svg class="mark">…</svg> below with your real logo:
   <img class="mark" src="YOUR_LOGO_URL">
 -->
@@ -14,8 +17,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-<?!= include('Stylesheet'); ?>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
 
 <header class="app">
   <div class="bar">
@@ -51,4 +55,7 @@
 <aside class="drawer" id="drawer" aria-label="Invoice follow-up detail"></aside>
 <div class="toast" id="toast"><span class="tick">✓</span><span id="toastMsg"></span></div>
 
-<?!= include('JavaScript'); ?>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
